@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit</title>
+<style>html,body{margin:0;background:#222}pre{font:12px monospace;padding:8px;white-space:pre-wrap;color:#0f0}</style>
+</head>
+<body>
+<iframe id="f" style="border:0;display:block"></iframe>
+<script>
+var q = new URLSearchParams(location.search);
+var W = parseInt(q.get('w') || '375', 10);
+var H = parseInt(q.get('h') || '900', 10);
+var page = q.get('page') || 'index.html';
+var openMenu = q.get('menu') === '1';
+var f = document.getElementById('f');
+f.style.width = W + 'px';
+f.style.height = H + 'px';
+f.src = page;
+
+function runAudit() {
+  var doc = f.contentDocument;
+  var el = doc.documentElement;
+  if (openMenu) {
+    var tg = doc.querySelector('.navbar-toggler');
+    if (tg) { tg.click(); }
+  }
+  var badR = [], badL = [];
+  var all = doc.querySelectorAll('*');
+  for (var i = 0; i < all.length; i++) {
+    var n = all[i];
+    var r = n.getBoundingClientRect();
+    var cls = (typeof n.className === 'string' ? n.className : (n.className && n.className.baseVal) || '');
+    if (r.width > 0 && r.height > 0) {
+      if (r.right > el.clientWidth + 2 && r.left < el.clientWidth) {
+        badR.push(n.tagName.toLowerCase() + '[' + String(cls).split(' ')[0] + '] x=' + Math.round(r.left) + '..' + Math.round(r.right));
+      }
+      if (r.left < -2 && r.right > -2) {
+        badL.push(n.tagName.toLowerCase() + '[' + String(cls).split(' ')[0] + '] x=' + Math.round(r.left));
+      }
+    }
+  }
+  var out = {
+    page: page, menu: openMenu,
+    w: W, h: H,
+    clientW: el.clientWidth,
+    scrollW: el.scrollWidth,
+    overflowX: el.scrollWidth - el.clientWidth,
+    overRight: badR.slice(0, 25),
+    overLeft: badL.filter(function (s) { return !/content\] x=-\d{3}/.test(s) && s.indexOf('h3') < 0; }).slice(0, 10)
+  };
+  document.title = JSON.stringify(out);
+  var pre = document.createElement('pre');
+  pre.id = 'RESULT';
+  pre.textContent = JSON.stringify(out, null, 1);
+  document.body.appendChild(pre);
+}
+window.addEventListener('load', function () { setTimeout(runAudit, 1200); });
+</script>
+</body>
+</html>
